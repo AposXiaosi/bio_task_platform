@@ -4,7 +4,7 @@ import com.example.biotaskplatform.entity.AnalysisTask;
 import com.example.biotaskplatform.service.AnalysisTaskService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-
+import com.example.biotaskplatform.common.Result;
 import java.util.List;
 
 @RestController
@@ -18,8 +18,11 @@ public class AnalysisTaskController {
      * 查询全部任务
      */
     @GetMapping("/list")
-    public List<AnalysisTask> list() {
-        return analysisTaskService.list();
+    public Result<List<AnalysisTask>> list() {
+
+        List<AnalysisTask> taskList = analysisTaskService.list();
+
+        return Result.success(taskList);
     }
 
     /**
