@@ -65,7 +65,7 @@
         </div>
         <div class="bio-info-item">
           <span class="bio-info-label">输出目录</span>
-          <span class="bio-info-value" style="word-break: break-all">{{ task.outputDirectory || '-' }}</span>
+          <span class="bio-info-value" style="word-break: break-all">{{ task.outputDirectory || task.outputDir || '-' }}</span>
         </div>
         <div class="bio-info-item">
           <span class="bio-info-label">创建时间</span>
@@ -77,7 +77,7 @@
         </div>
         <div class="bio-info-item">
           <span class="bio-info-label">完成时间</span>
-          <span class="bio-info-value">{{ formatTime(task.completedAt) }}</span>
+          <span class="bio-info-value">{{ formatTime(task.completedAt || task.finishedAt) }}</span>
         </div>
       </div>
     </el-card>
@@ -136,6 +136,19 @@
         <!-- Results Tab -->
         <el-tab-pane label="结果文件" name="results">
           <div style="padding: 16px 0">
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 16px">
+              <el-upload
+                :show-file-list="false"
+                :before-upload="beforeUpload"
+                :http-request="handleResultUpload"
+                accept=".txt,.fasta,.fa,.TXT,.FASTA,.FA"
+              >
+                <el-button type="primary">
+                  <el-icon style="margin-right: 4px"><Upload /></el-icon>
+                  上传结果文件
+                </el-button>
+              </el-upload>
+            </div>
             <el-table
               v-if="results.length > 0"
               :data="results"
@@ -193,8 +206,9 @@
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete, Back, Download, VideoPause, Document, Tickets, FolderOpened } from '@element-plus/icons-vue'
+import { Delete, Back, Download, VideoPause, Document, Tickets, FolderOpened, Upload } from '@element-plus/icons-vue'
 import { getTaskById, deleteTask, cancelTask, getTaskLogs } from '../api/task'
+import { getTaskResults, uploadTaskResult, getTaskResultDownloadUrl } from '../api/file'
 import TaskStatusTag from '../components/TaskStatusTag.vue'
 
 const route = useRoute()
@@ -278,11 +292,21 @@ async function fetchTask() {
   try {
     const res = await getTaskById(id)
     task.value = res || {}
-    results.value = res?.resultFiles || res?.results || res?.outputFiles || []
   } catch (e) {
     console.error('Fetch task error:', e)
   } finally {
     loading.value = false
+  }
+}
+
+async function fetchResults() {
+  const id = route.params.id
+  try {
+    const res = await getTaskResults(id)
+    results.value = Array.isArray(res) ? res : (res?.list || res?.records || res?.content || [])
+  } catch (e) {
+    results.value = []
+    console.error('Fetch task results error:', e)
   }
 }
 
@@ -348,17 +372,36 @@ function downloadFile(row) {
   const id = route.params.id
   const fileId = row.id || row.fileId
   if (fileId) {
-    window.open(`/api/tasks/${id}/results/${fileId}/download`, '_blank')
-  } else {
-    const fileName = row.fileName || row.name
-    if (fileName) {
-      window.open(`/api/tasks/${id}/results/${encodeURIComponent(fileName)}/download`, '_blank')
-    }
+    window.open(getTaskResultDownloadUrl(id, fileId), '_blank')
+  }
+}
+
+function beforeUpload(file) {
+  const allowedExtensions = ['.txt', '.fasta', '.fa']
+  const fileName = file?.name || ''
+  const extension = fileName.includes('.') ? fileName.substring(fileName.lastIndexOf('.')).toLowerCase() : ''
+  if (!allowedExtensions.includes(extension)) {
+    ElMessage.error('文件格式不支持，仅允许上传 .txt、.fasta、.fa 文件')
+    return false
+  }
+  return true
+}
+
+async function handleResultUpload({ file }) {
+  const id = route.params.id
+  try {
+    await uploadTaskResult(id, file)
+    ElMessage.success('结果文件上传成功')
+    await fetchResults()
+    await fetchTask()
+  } catch (e) {
+    console.error('Upload result file error:', e)
   }
 }
 
 onMounted(async () => {
   await fetchTask()
+  await fetchResults()
   await fetchLogs()
   startLogPolling()
 })
