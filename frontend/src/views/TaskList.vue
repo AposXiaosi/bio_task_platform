@@ -76,10 +76,24 @@
             {{ formatTime(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column label="操作" width="320" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click="viewTask(row)">查看</el-button>
             <el-button type="warning" link size="small" @click="editTask(row)">编辑</el-button>
+            <el-button
+              v-if="row.status === 'PENDING'"
+              type="success"
+              link
+              size="small"
+              @click="handleExecute(row)"
+            >执行</el-button>
+            <el-button
+              v-if="row.status === 'PENDING' || row.status === 'RUNNING'"
+              type="primary"
+              link
+              size="small"
+              @click="handleComplete(row)"
+            >完成</el-button>
             <el-button
               v-if="row.status === 'PENDING' || row.status === 'RUNNING'"
               type="info"
@@ -113,7 +127,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, RefreshRight } from '@element-plus/icons-vue'
-import { getTaskList, deleteTask, cancelTask, getAnalysisTypes } from '../api/task'
+import { getTaskList, deleteTask, cancelTask, getAnalysisTypes, executeTask, completeTask } from '../api/task'
 import TaskStatusTag from '../components/TaskStatusTag.vue'
 
 const router = useRouter()
@@ -175,6 +189,14 @@ async function fetchTasks() {
       tasks.value = res?.records || res?.content || res?.list || res?.data || []
       pagination.total = res?.total || res?.totalCount || res?.totalElements || tasks.value.length
     }
+    // Sort by priority (HIGH > MEDIUM > LOW), then by creation time (newest first)
+    const priorityOrder = { HIGH: 0, MEDIUM: 1, LOW: 2 }
+    tasks.value.sort((a, b) => {
+      const pa = priorityOrder[a.priority] ?? 1
+      const pb = priorityOrder[b.priority] ?? 1
+      if (pa !== pb) return pa - pb
+      return new Date(b.createdAt) - new Date(a.createdAt)
+    })
   } catch {
     tasks.value = []
   } finally {
@@ -227,6 +249,36 @@ async function handleDelete(row) {
     )
     await deleteTask(row.id)
     ElMessage.success('任务已删除')
+    fetchTasks()
+  } catch (e) {
+    if (e !== 'cancel') console.error(e)
+  }
+}
+
+async function handleExecute(row) {
+  try {
+    await ElMessageBox.confirm(
+      `确定要执行任务「${row.name}」吗？`,
+      '执行任务',
+      { confirmButtonText: '确定执行', cancelButtonText: '取消', type: 'info' }
+    )
+    await executeTask(row.id)
+    ElMessage.success('任务已开始执行')
+    fetchTasks()
+  } catch (e) {
+    if (e !== 'cancel') console.error(e)
+  }
+}
+
+async function handleComplete(row) {
+  try {
+    await ElMessageBox.confirm(
+      `确定要将任务「${row.name}」标记为完成吗？`,
+      '完成任务',
+      { confirmButtonText: '确定完成', cancelButtonText: '取消', type: 'success' }
+    )
+    await completeTask(row.id)
+    ElMessage.success('任务已标记为完成')
     fetchTasks()
   } catch (e) {
     if (e !== 'cancel') console.error(e)

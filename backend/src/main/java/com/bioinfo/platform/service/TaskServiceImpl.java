@@ -27,6 +27,8 @@ public class TaskServiceImpl implements TaskService {
     private final TaskParameterRepository taskParameterRepository;
     private final TaskLogRepository taskLogRepository;
     private final TaskResultRepository taskResultRepository;
+    private final TaskLogService taskLogService;
+    private final TaskExecutionService taskExecutionService;
 
     @Override
     @Transactional
@@ -54,6 +56,8 @@ public class TaskServiceImpl implements TaskService {
                 taskParameterRepository.save(param);
             }
         }
+
+        taskLogService.info(task.getId(), "任务已创建");
 
         return TaskDTO.fromTask(task);
     }
@@ -145,6 +149,18 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     @Transactional
+    public TaskDTO completeTask(Long id) {
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Task not found with id: " + id));
+
+        task.setStatus(TaskStatus.COMPLETED.name());
+        task.setFinishedAt(LocalDateTime.now());
+        task = taskRepository.save(task);
+        return TaskDTO.fromTask(task);
+    }
+
+    @Override
+    @Transactional
     public TaskLogDTO addTaskLog(Long taskId, TaskLogCreateRequest request) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new EntityNotFoundException("Task not found with id: " + taskId));
@@ -167,5 +183,13 @@ public class TaskServiceImpl implements TaskService {
         return taskLogRepository.findByTaskId(taskId).stream()
                 .map(TaskLogDTO::fromTaskLog)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void executeTask(Long taskId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new EntityNotFoundException("Task not found with id: " + taskId));
+        taskExecutionService.executeTask(taskId);
     }
 }

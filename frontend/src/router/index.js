@@ -1,6 +1,13 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { isLoggedIn } from '../utils/auth'
 
 const routes = [
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import('../views/Login.vue'),
+    meta: { title: '登录', public: true }
+  },
   {
     path: '/',
     name: 'Dashboard',
@@ -34,6 +41,17 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   document.title = `${to.meta.title || '任务管理'} - 生物信息分析任务管理平台`
+
+  if (to.meta.public) {
+    next()
+    return
+  }
+
+  if (!isLoggedIn()) {
+    next('/login')
+    return
+  }
+
   next()
 })
 

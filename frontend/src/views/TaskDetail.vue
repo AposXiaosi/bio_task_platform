@@ -7,6 +7,31 @@
       </div>
       <div style="display: flex; gap: 8px; flex-shrink: 0">
         <el-button
+          v-if="task.status === 'PENDING'"
+          type="success"
+          @click="handleExecute"
+          :loading="executing"
+        >
+          <el-icon style="margin-right: 4px"><VideoPlay /></el-icon>
+          执行任务
+        </el-button>
+        <el-button
+          v-if="task.status === 'PENDING'"
+          type="primary"
+          @click="showSolution"
+        >
+          <el-icon style="margin-right: 4px"><Document /></el-icon>
+          查看执行方案
+        </el-button>
+        <el-button
+          v-if="task.status === 'PENDING' || task.status === 'RUNNING'"
+          type="primary"
+          @click="handleComplete"
+        >
+          <el-icon style="margin-right: 4px"><CircleCheck /></el-icon>
+          完成任务
+        </el-button>
+        <el-button
           v-if="task.status === 'PENDING' || task.status === 'RUNNING'"
           type="warning"
           @click="handleCancel"
@@ -184,6 +209,59 @@
             </div>
           </div>
         </el-tab-pane>
+
+        <!-- Solution Tab -->
+        <el-tab-pane label="执行方案" name="solution">
+          <div style="padding: 16px 0">
+            <template v-if="solution.typeCode">
+              <el-card shadow="never" style="margin-bottom: 16px">
+                <template #header>
+                  <div style="display: flex; align-items: center; gap: 8px">
+                    <el-icon><Tools /></el-icon>
+                    <span style="font-weight: 600">{{ solution.typeName }} 执行方案</span>
+                  </div>
+                </template>
+                <el-descriptions :column="2" border size="default">
+                  <el-descriptions-item label="分析工具">{{ solution.tool }}</el-descriptions-item>
+                  <el-descriptions-item label="分析类型">{{ solution.typeName }}</el-descriptions-item>
+                  <el-descriptions-item label="说明" :span="2">{{ solution.description }}</el-descriptions-item>
+                  <el-descriptions-item label="Python依赖库" :span="2">
+                    <el-tag v-for="lib in (solution.pythonLibs || [])" :key="lib" size="small" style="margin-right: 6px">{{ lib }}</el-tag>
+                  </el-descriptions-item>
+                </el-descriptions>
+              </el-card>
+
+              <el-card shadow="never">
+                <template #header>
+                  <span style="font-weight: 600">执行命令</span>
+                </template>
+                <div class="bio-log-viewer" style="max-height: 200px">
+                  <code>{{ solution.command }}</code>
+                </div>
+              </el-card>
+
+              <el-card shadow="never" style="margin-top: 16px">
+                <template #header>
+                  <span style="font-weight: 600">Python 脚本</span>
+                </template>
+                <div class="bio-log-viewer" style="max-height: 400px">
+                  <pre style="margin: 0; white-space: pre-wrap">{{ solution.script }}</pre>
+                </div>
+              </el-card>
+
+              <div style="margin-top: 16px">
+                <el-button type="success" @click="handleExecute" :loading="executing" size="large">
+                  <el-icon style="margin-right: 4px"><VideoPlay /></el-icon>
+                  一键执行此方案
+                </el-button>
+              </div>
+            </template>
+            <div v-else class="bio-empty">
+              <el-icon><Document /></el-icon>
+              <p>点击上方"查看执行方案"按钮加载</p>
+            </div>
+          </div>
+        </el-tab-pane>
       </el-tabs>
     </el-card>
   </div>
@@ -193,8 +271,8 @@
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete, Back, Download, VideoPause, Document, Tickets, FolderOpened } from '@element-plus/icons-vue'
-import { getTaskById, deleteTask, cancelTask, getTaskLogs } from '../api/task'
+import { Delete, Back, Download, VideoPause, Document, Tickets, FolderOpened, VideoPlay, Tools, CircleCheck } from '@element-plus/icons-vue'
+import { getTaskById, deleteTask, cancelTask, getTaskLogs, executeTask, getTaskSolution, completeTask } from '../api/task'
 import TaskStatusTag from '../components/TaskStatusTag.vue'
 
 const route = useRoute()
@@ -206,6 +284,8 @@ const logViewerRef = ref(null)
 const task = ref({})
 const logs = ref([])
 const results = ref([])
+const solution = ref({})
+const executing = ref(false)
 
 let logPollingTimer = null
 
@@ -339,6 +419,51 @@ async function handleDelete() {
     await deleteTask(task.value.id)
     ElMessage.success('任务已删除')
     router.push('/tasks')
+  } catch (e) {
+    if (e !== 'cancel') console.error(e)
+  }
+}
+
+async function handleExecute() {
+  try {
+    await ElMessageBox.confirm('确定要执行此任务吗？', '执行任务', {
+      confirmButtonText: '确定执行',
+      cancelButtonText: '取消',
+      type: 'info'
+    })
+    executing.value = true
+    await executeTask(task.value.id)
+    ElMessage.success('任务已开始执行')
+    fetchTask()
+    activeTab.value = 'logs'
+  } catch (e) {
+    if (e !== 'cancel') console.error(e)
+  } finally {
+    executing.value = false
+  }
+}
+
+async function showSolution() {
+  activeTab.value = 'solution'
+  try {
+    const res = await getTaskSolution(route.params.id)
+    solution.value = res || {}
+  } catch (e) {
+    console.error('Load solution error:', e)
+    solution.value = {}
+  }
+}
+
+async function handleComplete() {
+  try {
+    await ElMessageBox.confirm('确定要将此任务标记为完成吗？', '完成任务', {
+      confirmButtonText: '确定完成',
+      cancelButtonText: '取消',
+      type: 'success'
+    })
+    await completeTask(task.value.id)
+    ElMessage.success('任务已标记为完成')
+    fetchTask()
   } catch (e) {
     if (e !== 'cancel') console.error(e)
   }

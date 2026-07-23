@@ -1,5 +1,9 @@
 <template>
-  <el-container class="bio-layout">
+  <el-container v-if="isLoginPage" class="bio-layout-login">
+    <router-view />
+  </el-container>
+
+  <el-container v-else class="bio-layout">
     <el-aside :width="sidebarWidth" class="bio-sidebar">
       <div class="bio-logo">
         <div class="bio-logo-icon">
@@ -37,6 +41,20 @@
           <el-tooltip content="刷新" placement="bottom">
             <el-button :icon="Refresh" circle size="small" @click="handleRefresh" />
           </el-tooltip>
+          <el-dropdown v-if="currentUser">
+            <span class="bio-user-info" style="cursor: pointer; display: flex; align-items: center; gap: 6px; color: #303133; font-size: 14px">
+              <el-icon><User /></el-icon>
+              {{ currentUser.nickname || currentUser.username }}
+            </span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click="handleLogout">
+                  <el-icon><SwitchButton /></el-icon>
+                  退出登录
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </el-header>
 
@@ -52,14 +70,18 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Refresh } from '@element-plus/icons-vue'
+import { Refresh, User, SwitchButton, DataAnalysis } from '@element-plus/icons-vue'
+import { getUser, logout } from './utils/auth'
 
 const route = useRoute()
 const router = useRouter()
 
 const sidebarWidth = '220px'
+const currentUser = ref(null)
+
+const isLoginPage = computed(() => route.path === '/login')
 
 const activeMenu = computed(() => {
   const path = route.path
@@ -73,13 +95,27 @@ const currentPageTitle = computed(() => {
   return route.meta?.title || '生物信息分析任务管理平台'
 })
 
+onMounted(() => {
+  currentUser.value = getUser()
+})
+
 function handleRefresh() {
   router.go(0)
+}
+
+function handleLogout() {
+  logout()
+  router.push('/login')
 }
 </script>
 
 <style scoped>
 .bio-layout {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.bio-layout-login {
   height: 100vh;
   overflow: hidden;
 }

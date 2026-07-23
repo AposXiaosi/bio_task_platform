@@ -16,7 +16,11 @@ public interface TaskService {
 
     TaskDTO cancelTask(Long id);
 
+    TaskDTO completeTask(Long id);
+
     TaskLogDTO addTaskLog(Long taskId, TaskLogCreateRequest request);
 
     List<TaskLogDTO> getTaskLogs(Long taskId);
+
+    void executeTask(Long taskId);
 }

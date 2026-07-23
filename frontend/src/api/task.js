@@ -24,6 +24,10 @@ export function cancelTask(id) {
   return request.put(`/tasks/${id}/cancel`)
 }
 
+export function completeTask(id) {
+  return request.put(`/tasks/${id}/complete`)
+}
+
 export function getTaskLogs(id) {
   return request.get(`/tasks/${id}/logs`)
 }
@@ -34,4 +38,12 @@ export function addTaskLog(id, data) {
 
 export function getAnalysisTypes() {
   return request.get('/analysis-types')
+}
+
+export function executeTask(id) {
+  return request.post(`/tasks/${id}/execute`)
+}
+
+export function getTaskSolution(id) {
+  return request.get(`/tasks/${id}/solution`)
 }

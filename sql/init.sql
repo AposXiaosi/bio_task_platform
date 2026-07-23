@@ -10,6 +10,26 @@ CREATE DATABASE IF NOT EXISTS `bioinfo_platform`
 USE `bioinfo_platform`;
 
 -- ============================================================
+-- 0. sys_user  - System user table
+-- ============================================================
+CREATE TABLE `sys_user` (
+  `id`         BIGINT       NOT NULL AUTO_INCREMENT,
+  `username`   VARCHAR(50)  NOT NULL COMMENT '用户名',
+  `password`   VARCHAR(200) NOT NULL COMMENT '密码',
+  `nickname`   VARCHAR(100)          COMMENT '昵称',
+  `email`      VARCHAR(100)          COMMENT '邮箱',
+  `avatar`     VARCHAR(500)          COMMENT '头像',
+  `status`     TINYINT               DEFAULT 1 COMMENT '状态: 1=启用, 0=禁用',
+  `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_username` (`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统用户表';
+
+INSERT INTO `sys_user` (`username`, `password`, `nickname`, `email`, `status`) VALUES
+('admin', 'admin123', 'admin', 'admin@bioinfo.com', 1);
+
+-- ============================================================
 -- 1. analysis_type  - Analysis type lookup table
 -- ============================================================
 CREATE TABLE `analysis_type` (
