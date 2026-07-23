@@ -118,6 +118,9 @@ function handleLogout() {
 .bio-layout-login {
   height: 100vh;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .bio-header-right {

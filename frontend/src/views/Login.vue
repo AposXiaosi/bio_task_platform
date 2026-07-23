@@ -284,6 +284,8 @@ function particleStyle(i) {
 
 <style scoped>
 .login-container {
+  width: 100%;
+  height: 100%;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -458,7 +460,11 @@ function particleStyle(i) {
 }
 
 .login-footer {
-  margin-top: 24px;
+  position: absolute;
+  bottom: 20px;
+  left: 0;
+  right: 0;
+  text-align: center;
   z-index: 10;
 }
 
