@@ -27,6 +27,7 @@ public class TaskServiceImpl implements TaskService {
     private final TaskParameterRepository taskParameterRepository;
     private final TaskLogRepository taskLogRepository;
     private final TaskResultRepository taskResultRepository;
+    private final TaskFileRepository taskFileRepository;
     private final TaskLogService taskLogService;
     private final TaskExecutionService taskExecutionService;
 
@@ -45,6 +46,23 @@ public class TaskServiceImpl implements TaskService {
         task.setInputFiles(request.getInputFiles());
 
         task = taskRepository.save(task);
+
+        // 关联上传的输入文件
+        if (request.getFileIds() != null && !request.getFileIds().isEmpty()) {
+            List<TaskFile> uploadedFiles = taskFileRepository.findByIdInAndTaskIsNull(request.getFileIds());
+            for (TaskFile tf : uploadedFiles) {
+                tf.setTask(task);
+                taskFileRepository.save(tf);
+            }
+            // 同时把文件名写入 task.input_files 字段（保持向后兼容）
+            String inputFilesStr = uploadedFiles.stream()
+                    .map(TaskFile::getOriginalName)
+                    .collect(Collectors.joining(","));
+            if (!inputFilesStr.isEmpty()) {
+                task.setInputFiles(inputFilesStr);
+                task = taskRepository.save(task);
+            }
+        }
 
         if (request.getParameters() != null) {
             for (Map.Entry<String, String> entry : request.getParameters().entrySet()) {

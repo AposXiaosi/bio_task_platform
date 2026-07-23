@@ -3,6 +3,7 @@ package com.bioinfo.platform.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
+import java.util.List;
 import java.util.Map;
 
 @Data
@@ -18,6 +19,8 @@ public class TaskCreateRequest {
     private String priority;
 
     private String inputFiles;
+
+    private List<Long> fileIds;
 
     private Map<String, String> parameters;
 }

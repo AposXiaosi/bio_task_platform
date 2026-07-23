@@ -123,6 +123,25 @@ CREATE TABLE `task_result` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Task result files';
 
 -- ============================================================
+-- 6. task_file  - Task input files (uploaded via frontend)
+-- ============================================================
+CREATE TABLE `task_file` (
+  `id`            BIGINT       NOT NULL AUTO_INCREMENT,
+  `task_id`       BIGINT                 COMMENT 'FK to task (null until task is created)',
+  `original_name` VARCHAR(255) NOT NULL COMMENT '原始文件名',
+  `file_name`     VARCHAR(255) NOT NULL COMMENT '存储文件名（UUID）',
+  `file_path`     VARCHAR(500) NOT NULL COMMENT '服务器存储路径',
+  `file_size`     BIGINT                 COMMENT '文件大小（字节）',
+  `file_type`     VARCHAR(50)           COMMENT '文件类型/扩展名',
+  `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `idx_task_file_task_id` (`task_id`),
+  CONSTRAINT `fk_task_file_task`
+    FOREIGN KEY (`task_id`) REFERENCES `task` (`id`)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='任务输入文件表';
+
+-- ============================================================
 -- Seed data: analysis_type
 -- ============================================================
 INSERT INTO `analysis_type` (`name`, `code`, `description`, `default_params`) VALUES

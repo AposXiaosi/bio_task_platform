@@ -3,6 +3,8 @@ package com.bioinfo.platform.dto;
 import com.bioinfo.platform.entity.Task;
 import lombok.Data;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Data
 public class TaskDTO {
@@ -23,6 +25,7 @@ public class TaskDTO {
     private int parameterCount;
     private int logCount;
     private int resultCount;
+    private List<TaskFileDTO> inputFileList;
 
     public static TaskDTO fromTask(Task task) {
         TaskDTO dto = new TaskDTO();
@@ -45,6 +48,13 @@ public class TaskDTO {
         dto.setParameterCount(task.getParameters() != null ? task.getParameters().size() : 0);
         dto.setLogCount(task.getLogs() != null ? task.getLogs().size() : 0);
         dto.setResultCount(task.getResults() != null ? task.getResults().size() : 0);
+        if (task.getFiles() != null) {
+            dto.setInputFileList(
+                task.getFiles().stream()
+                    .map(TaskFileDTO::fromTaskFile)
+                    .collect(Collectors.toList())
+            );
+        }
         return dto;
     }
 }

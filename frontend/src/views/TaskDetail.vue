@@ -86,7 +86,14 @@
         </div>
         <div class="bio-info-item">
           <span class="bio-info-label">输入文件</span>
-          <span class="bio-info-value" style="word-break: break-all">{{ formatFiles(task.inputFiles) }}</span>
+          <span class="bio-info-value" style="word-break: break-all">
+            <template v-if="inputFiles.length > 0">
+              {{ inputFiles.map(f => f.originalName).join(', ') }}
+            </template>
+            <template v-else>
+              {{ formatFiles(task.inputFiles) }}
+            </template>
+          </span>
         </div>
         <div class="bio-info-item">
           <span class="bio-info-label">输出目录</span>
@@ -135,6 +142,60 @@
             <div v-else class="bio-empty">
               <el-icon><Document /></el-icon>
               <p>暂无参数数据</p>
+            </div>
+          </div>
+        </el-tab-pane>
+
+        <!-- Input Files Tab -->
+        <el-tab-pane label="输入文件" name="inputFiles">
+          <div style="padding: 16px 0">
+            <el-table
+              v-if="inputFiles.length > 0"
+              :data="inputFiles"
+              class="bio-table"
+              style="width: 100%"
+              :header-cell-style="{ background: '#f5f7fa', color: '#606266', fontWeight: 600 }"
+              empty-text="暂无输入文件"
+            >
+              <el-table-column label="文件名" min-width="220">
+                <template #default="{ row }">
+                  <div style="display: flex; align-items: center">
+                    <span :class="['bio-result-icon', getFileIconClass(row.originalName || row.fileName)]">
+                      <el-icon><Document /></el-icon>
+                    </span>
+                    <span style="color: #303133">{{ row.originalName || row.fileName }}</span>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column label="文件大小" width="120">
+                <template #default="{ row }">
+                  {{ formatSize(row.fileSize) }}
+                </template>
+              </el-table-column>
+              <el-table-column label="类型" width="100">
+                <template #default="{ row }">
+                  <el-tag size="small" type="info" effect="plain">
+                    {{ row.fileType || getFileExt(row.originalName || row.fileName) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="上传时间" width="180">
+                <template #default="{ row }">
+                  {{ formatTime(row.createdAt) }}
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="100" fixed="right">
+                <template #default="{ row }">
+                  <el-button type="primary" link size="small" @click="downloadInputFile(row.id)">
+                    <el-icon style="margin-right: 2px"><Download /></el-icon>
+                    下载
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            <div v-else class="bio-empty">
+              <el-icon><FolderOpened /></el-icon>
+              <p>暂无输入文件</p>
             </div>
           </div>
         </el-tab-pane>
@@ -273,6 +334,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete, Back, Download, VideoPause, Document, Tickets, FolderOpened, VideoPlay, Tools, CircleCheck } from '@element-plus/icons-vue'
 import { getTaskById, deleteTask, cancelTask, getTaskLogs, executeTask, getTaskSolution, completeTask } from '../api/task'
+import { getTaskFiles, getFileDownloadUrl } from '../api/file'
 import TaskStatusTag from '../components/TaskStatusTag.vue'
 
 const route = useRoute()
@@ -284,6 +346,7 @@ const logViewerRef = ref(null)
 const task = ref({})
 const logs = ref([])
 const results = ref([])
+const inputFiles = ref([])
 const solution = ref({})
 const executing = ref(false)
 
@@ -359,11 +422,30 @@ async function fetchTask() {
     const res = await getTaskById(id)
     task.value = res || {}
     results.value = res?.resultFiles || res?.results || res?.outputFiles || []
+    // 加载输入文件列表
+    if (res?.inputFileList && res.inputFileList.length > 0) {
+      inputFiles.value = res.inputFileList
+    } else {
+      await fetchInputFiles(id)
+    }
   } catch (e) {
     console.error('Fetch task error:', e)
   } finally {
     loading.value = false
   }
+}
+
+async function fetchInputFiles(taskId) {
+  try {
+    const res = await getTaskFiles(taskId)
+    inputFiles.value = Array.isArray(res) ? res : (res?.list || [])
+  } catch {
+    inputFiles.value = []
+  }
+}
+
+function downloadInputFile(fileId) {
+  window.open(getFileDownloadUrl(fileId), '_blank')
 }
 
 async function fetchLogs() {

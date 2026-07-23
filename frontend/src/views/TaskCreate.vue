@@ -45,13 +45,31 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="输入文件路径" prop="inputFiles">
-              <el-input
-                v-model="form.inputFiles"
-                type="textarea"
-                :rows="2"
-                placeholder="请输入输入文件路径，多个文件用逗号分隔"
-              />
+            <el-form-item label="输入文件">
+              <el-upload
+                :http-request="handleFileUpload"
+                :show-file-list="false"
+                :before-upload="beforeUpload"
+                :disabled="uploading"
+                multiple
+                accept=".fa,.fasta,.fq,.fastq,.bam,.vcf,.txt,.csv,.zip,.fna,.faa,.gtf,.gff"
+              >
+                <el-button :loading="uploading" :disabled="uploading">
+                  <el-icon v-if="!uploading" style="margin-right: 4px"><UploadFilled /></el-icon>
+                  {{ uploading ? '上传中...' : '上传文件' }}
+                </el-button>
+              </el-upload>
+              <div v-if="uploadedFiles.length > 0" class="uploaded-file-list">
+                <div v-for="f in uploadedFiles" :key="f.fileId" class="uploaded-file-item">
+                  <el-icon color="#14919b"><Document /></el-icon>
+                  <span class="uploaded-file-name" :title="f.fileName">{{ f.fileName }}</span>
+                  <span class="uploaded-file-size">{{ formatSize(f.fileSize) }}</span>
+                  <el-button type="danger" link size="small" @click="handleRemoveFile(f.fileId)">
+                    <el-icon><Delete /></el-icon>
+                  </el-button>
+                </div>
+              </div>
+              <div class="upload-tip">支持 .fasta/.fastq/.bam/.vcf/.txt/.csv/.zip 等格式，单文件最大 100MB</div>
             </el-form-item>
           </el-col>
         </el-row>
@@ -234,21 +252,23 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { Check } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Check, UploadFilled, Document, Delete } from '@element-plus/icons-vue'
 import { createTask, getAnalysisTypes } from '../api/task'
+import { uploadFile } from '../api/file'
 
 const router = useRouter()
 const formRef = ref(null)
 const submitting = ref(false)
+const uploading = ref(false)
 const analysisTypes = ref([])
+const uploadedFiles = ref([])
 
 const form = reactive({
   name: '',
   analysisTypeId: '',
   priority: 'MEDIUM',
   description: '',
-  inputFiles: '',
   params: {}
 })
 
@@ -279,6 +299,50 @@ function onTypeChange() {
   form.params = {}
 }
 
+// 文件上传相关
+function beforeUpload(file) {
+  const maxSize = 100 * 1024 * 1024 // 100MB
+  if (file.size > maxSize) {
+    ElMessage.error('文件大小不能超过 100MB')
+    return false
+  }
+  return true
+}
+
+async function handleFileUpload(options) {
+  uploading.value = true
+  try {
+    const res = await uploadFile(options.file, options.onProgress)
+    uploadedFiles.value.push({
+      fileId: res.fileId,
+      fileName: res.fileName,
+      fileSize: res.fileSize,
+      fileType: res.fileType
+    })
+    ElMessage.success(`${options.file.name} 上传成功`)
+  } catch (e) {
+    ElMessage.error('文件上传失败')
+  } finally {
+    uploading.value = false
+  }
+}
+
+function handleRemoveFile(fileId) {
+  uploadedFiles.value = uploadedFiles.value.filter(f => f.fileId !== fileId)
+}
+
+function formatSize(bytes) {
+  if (!bytes && bytes !== 0) return '-'
+  const units = ['B', 'KB', 'MB', 'GB']
+  let i = 0
+  let size = Number(bytes)
+  while (size >= 1024 && i < units.length - 1) {
+    size /= 1024
+    i++
+  }
+  return `${size.toFixed(i === 0 ? 0 : 1)} ${units[i]}`
+}
+
 async function fetchAnalysisTypes() {
   try {
     const res = await getAnalysisTypes()
@@ -294,11 +358,10 @@ function buildPayload() {
     analysisTypeId: form.analysisTypeId,
     priority: form.priority,
     description: form.description || undefined,
-    inputFiles: form.inputFiles || undefined,
+    fileIds: uploadedFiles.value.length > 0
+      ? uploadedFiles.value.map(f => f.fileId)
+      : undefined,
     parameters: Object.keys(form.params).length > 0 ? { ...form.params } : undefined
-  }
-  if (data.inputFiles && data.inputFiles.trim()) {
-    data.inputFiles = data.inputFiles.split(',').map(f => f.trim()).filter(Boolean).join(',')
   }
   return data
 }
@@ -335,5 +398,50 @@ onMounted(fetchAnalysisTypes)
 <style scoped>
 .task-create {
   max-width: 960px;
+}
+
+.uploaded-file-list {
+  margin-top: 10px;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  padding: 8px;
+  background: #fafbfc;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.uploaded-file-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.uploaded-file-item:hover {
+  background: #f0f7ff;
+}
+
+.uploaded-file-name {
+  flex: 1;
+  font-size: 13px;
+  color: #303133;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.uploaded-file-size {
+  font-size: 12px;
+  color: #909399;
+  flex-shrink: 0;
+}
+
+.upload-tip {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.5;
 }
 </style>
