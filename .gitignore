@@ -1,0 +1,28 @@
+# IDE and OS files
+.idea/
+**/.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Local secrets
+.env
+.env.*
+!.env.example
+application-local.yml
+
+# Backend build and runtime data
+backend/target/
+backend/data/
+*.log
+
+# Frontend dependencies and build output
+frontend/node_modules/
+frontend/dist/
+
+# Unrelated generated demo project
+demo/
+
+# Accidental root lockfile (the frontend lockfile is tracked)
+/package-lock.json
